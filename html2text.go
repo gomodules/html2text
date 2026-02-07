@@ -8,6 +8,8 @@ import (
 	"unicode"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/ssor/bom"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -23,43 +25,27 @@ type Options struct {
 
 // PrettyTablesOptions overrides tablewriter behaviors
 type PrettyTablesOptions struct {
-	AutoFormatHeader     bool
-	AutoWrapText         bool
-	ReflowDuringAutoWrap bool
-	ColWidth             int
-	ColumnSeparator      string
-	RowSeparator         string
-	CenterSeparator      string
-	HeaderAlignment      int
-	FooterAlignment      int
-	Alignment            int
-	ColumnAlignment      []int
-	NewLine              string
-	HeaderLine           bool
-	RowLine              bool
-	AutoMergeCells       bool
-	Borders              tablewriter.Border
+	AutoFormatHeader bool
+	AutoWrapText     int // WrapNone, WrapNormal, WrapTruncate, WrapBreak
+	ColWidth         int
+	HeaderAlignment  tw.Align
+	FooterAlignment  tw.Align
+	Alignment        tw.Align
+	ColumnAlignment  []tw.Align
+	AutoMergeCells   int // MergeNone, MergeVertical, etc.
 }
 
 // NewPrettyTablesOptions creates PrettyTablesOptions with default settings
 func NewPrettyTablesOptions() *PrettyTablesOptions {
 	return &PrettyTablesOptions{
-		AutoFormatHeader:     true,
-		AutoWrapText:         true,
-		ReflowDuringAutoWrap: true,
-		ColWidth:             tablewriter.MAX_ROW_WIDTH,
-		ColumnSeparator:      tablewriter.COLUMN,
-		RowSeparator:         tablewriter.ROW,
-		CenterSeparator:      tablewriter.CENTER,
-		HeaderAlignment:      tablewriter.ALIGN_DEFAULT,
-		FooterAlignment:      tablewriter.ALIGN_DEFAULT,
-		Alignment:            tablewriter.ALIGN_DEFAULT,
-		ColumnAlignment:      []int{},
-		NewLine:              tablewriter.NEWLINE,
-		HeaderLine:           true,
-		RowLine:              false,
-		AutoMergeCells:       false,
-		Borders:              tablewriter.Border{Left: true, Right: true, Bottom: true, Top: true},
+		AutoFormatHeader: true,
+		AutoWrapText:     tw.WrapNormal,
+		ColWidth:         0, // 0 means use default
+		HeaderAlignment:  tw.AlignDefault,
+		FooterAlignment:  tw.AlignDefault,
+		Alignment:        tw.AlignDefault,
+		ColumnAlignment:  []tw.Align{},
+		AutoMergeCells:   tw.MergeNone,
 	}
 }
 
@@ -332,32 +318,79 @@ func (ctx *textifyTraverseContext) handleTableElement(node *html.Node) error {
 		}
 
 		buf := &bytes.Buffer{}
-		table := tablewriter.NewWriter(buf)
-		if ctx.options.PrettyTablesOptions != nil {
-			options := ctx.options.PrettyTablesOptions
-			table.SetAutoFormatHeaders(options.AutoFormatHeader)
-			table.SetAutoWrapText(options.AutoWrapText)
-			table.SetReflowDuringAutoWrap(options.ReflowDuringAutoWrap)
-			table.SetColWidth(options.ColWidth)
-			table.SetColumnSeparator(options.ColumnSeparator)
-			table.SetRowSeparator(options.RowSeparator)
-			table.SetCenterSeparator(options.CenterSeparator)
-			table.SetHeaderAlignment(options.HeaderAlignment)
-			table.SetFooterAlignment(options.FooterAlignment)
-			table.SetAlignment(options.Alignment)
-			table.SetColumnAlignment(options.ColumnAlignment)
-			table.SetNewLine(options.NewLine)
-			table.SetHeaderLine(options.HeaderLine)
-			table.SetRowLine(options.RowLine)
-			table.SetAutoMergeCells(options.AutoMergeCells)
-			table.SetBorders(options.Borders)
+		// Create table with ASCII-style renderer for backward compatibility
+		table := tablewriter.NewTable(buf,
+			tablewriter.WithRenderer(renderer.NewBlueprint()),
+			tablewriter.WithRendition(tw.Rendition{
+				Symbols: tw.NewSymbols(tw.StyleASCII),
+			}),
+		)
+		// Configure table settings
+		options := ctx.options.PrettyTablesOptions
+		if options == nil {
+			// Use default options if not specified
+			options = NewPrettyTablesOptions()
 		}
-		table.SetHeader(ctx.tableCtx.header)
-		table.SetFooter(ctx.tableCtx.footer)
-		table.AppendBulk(ctx.tableCtx.body)
+		table.Configure(func(cfg *tablewriter.Config) {
+			// Apply auto-format to headers and footers (for uppercase)
+			if options.AutoFormatHeader {
+				cfg.Header.Formatting.AutoFormat = tw.On
+				cfg.Footer.Formatting.AutoFormat = tw.On // Apply to footer too
+			} else {
+				cfg.Header.Formatting.AutoFormat = tw.Off
+				cfg.Footer.Formatting.AutoFormat = tw.Off
+			}
+			cfg.Header.Formatting.AutoWrap = options.AutoWrapText
+			cfg.Row.Formatting.AutoWrap = options.AutoWrapText
+			cfg.Footer.Formatting.AutoWrap = options.AutoWrapText
+			if options.ColWidth > 0 {
+				cfg.MaxWidth = options.ColWidth
+			}
+			// Set reasonable default max content width per column for text wrapping
+			cfg.Row.ColMaxWidths.Global = 32
+			cfg.Header.ColMaxWidths.Global = 32
+			cfg.Footer.ColMaxWidths.Global = 32
+			// Only set alignment if not default (to preserve tablewriter's natural defaults)
+			if options.HeaderAlignment != tw.AlignDefault {
+				cfg.Header.Alignment.Global = options.HeaderAlignment
+			}
+			if options.FooterAlignment != tw.AlignDefault {
+				cfg.Footer.Alignment.Global = options.FooterAlignment
+			} else {
+				// Default footer alignment to center (to match old behavior)
+				cfg.Footer.Alignment.Global = tw.AlignCenter
+			}
+			if options.Alignment != tw.AlignDefault {
+				cfg.Row.Alignment.Global = options.Alignment
+			}
+			if len(options.ColumnAlignment) > 0 {
+				cfg.Row.Alignment.PerColumn = options.ColumnAlignment
+			}
+			if options.AutoMergeCells != tw.MergeNone {
+				cfg.Header.Merging.Mode = options.AutoMergeCells
+				cfg.Row.Merging.Mode = options.AutoMergeCells
+				cfg.Footer.Merging.Mode = options.AutoMergeCells
+			}
+		})
+		// Convert []string to []any for Header and Footer
+		headerAny := make([]any, len(ctx.tableCtx.header))
+		for i, v := range ctx.tableCtx.header {
+			headerAny[i] = v
+		}
+		footerAny := make([]any, len(ctx.tableCtx.footer))
+		for i, v := range ctx.tableCtx.footer {
+			footerAny[i] = v
+		}
+		table.Header(headerAny...)
+		table.Footer(footerAny...)
+		for _, row := range ctx.tableCtx.body {
+			table.Append(row)
+		}
 
 		// Render the table using ASCII.
-		table.Render()
+		if err := table.Render(); err != nil {
+			return err
+		}
 		if err := ctx.emit(buf.String()); err != nil {
 			return err
 		}

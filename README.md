@@ -1,8 +1,8 @@
 # html2text
 
-[![Documentation](https://godoc.org/github.com/jaytaylor/html2text?status.svg)](https://godoc.org/github.com/jaytaylor/html2text)
-[![Build Status](https://travis-ci.org/jaytaylor/html2text.svg?branch=master)](https://travis-ci.org/jaytaylor/html2text)
-[![Report Card](https://goreportcard.com/badge/github.com/jaytaylor/html2text)](https://goreportcard.com/report/github.com/jaytaylor/html2text)
+[![Documentation](https://godoc.org/github.com/gomodules/html2text?status.svg)](https://godoc.org/github.com/gomodules/html2text)
+[![ci](https://github.com/gomodules/html2text/actions/workflows/ci.yml/badge.svg)](https://github.com/gomodules/html2text/actions/workflows/ci.yml)
+[![Report Card](https://goreportcard.com/badge/github.com/gomodules/html2text)](https://goreportcard.com/report/github.com/gomodules/html2text)
 
 ### Converts HTML into text of the markdown-flavored variety
 
@@ -21,7 +21,7 @@ It requires go 1.x or newer ;)
 ## Download the package
 
 ```bash
-go get jaytaylor.com/html2text
+go get gomodules.xyz/html2text
 ```
 
 ## Example usage
@@ -34,7 +34,7 @@ package main
 import (
 	"fmt"
 
-	"jaytaylor.com/html2text"
+	"gomodules.xyz/html2text"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 
   <body>
     <div class="logo">
-      <a href="http://jaytaylor.com/"><img src="/logo-image.jpg" alt="Mega Service"/></a>
+      <a href="http://gomodules.xyz/"><img src="/logo-image.jpg" alt="Mega Service"/></a>
     </div>
 
     <h1>Welcome to your new account on my service!</h1>
@@ -88,7 +88,7 @@ func main() {
 
 Output:
 ```
-Mega Service ( http://jaytaylor.com/ )
+Mega Service ( http://gomodules.xyz/ )
 
 ******************************************
 Welcome to your new account on my service!

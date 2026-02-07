@@ -970,7 +970,7 @@ func Example() {
 
 	<body>
 		<div class="logo">
-			<a href="http://jaytaylor.com/"><img src="/logo-image.jpg" alt="Mega Service"/></a>
+			<a href="http://gomodules.xyz/"><img src="/logo-image.jpg" alt="Mega Service"/></a>
 		</div>
 
 		<h1>Welcome to your new account on my service!</h1>
@@ -1007,7 +1007,7 @@ func Example() {
 	fmt.Println(text)
 
 	// Output:
-	// Mega Service ( http://jaytaylor.com/ )
+	// Mega Service ( http://gomodules.xyz/ )
 	//
 	// ******************************************
 	// Welcome to your new account on my service!

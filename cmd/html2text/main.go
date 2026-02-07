@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"jaytaylor.com/html2text"
+	"gomodules.xyz/html2text"
 )
 
 func main() {
